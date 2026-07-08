@@ -16,6 +16,7 @@ Frames are fed sequentially through ONE policy instance so the text-memory
 from __future__ import annotations
 
 import argparse
+import os
 import statistics
 import sys
 from pathlib import Path
@@ -49,7 +50,8 @@ def main() -> None:
 
     frames = pick_frames(args.n)
     policy = make_policy(args.command, mode=args.mode)
-    print(f"gate: {len(frames)} frames | mode={args.mode} | model={policy.model}")
+    width = os.environ.get("VLM_IMAGE_WIDTH", "1152")
+    print(f"gate: {len(frames)} frames | mode={args.mode} | model={policy.model} | width={width}")
     print(f"command: {args.command!r}\n")
 
     decisions = []

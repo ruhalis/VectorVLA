@@ -31,7 +31,7 @@ def _encode_jpeg(frame: Union[np.ndarray, str, Path], width: Optional[int], qual
 
 def frame_to_data_url(frame: Union[np.ndarray, str, Path], width: Optional[int] = None) -> str:
     """Accepts a live (H, W, 3) uint8 RGB array or a recorded frame's file path."""
-    width = width or int(os.environ.get("VLM_IMAGE_WIDTH", "800"))
+    width = width or int(os.environ.get("VLM_IMAGE_WIDTH", "1152"))
     return "data:image/jpeg;base64," + base64.b64encode(_encode_jpeg(frame, width, 80)).decode()
 
 

@@ -30,7 +30,7 @@ import numpy as np
 
 from dreampilot.actions import AXES, IDLE_STATE
 from dreampilot.frames import frame_to_data_url
-from dreampilot.vlm import default_model, make_vlm_client
+from dreampilot.vlm import default_model, is_reasoning_model, make_vlm_client
 
 logger = logging.getLogger("vectorvla.policy")
 
@@ -89,13 +89,16 @@ class Policy(ABC):
 
     # ---- prompt assembly
 
-    def _messages(self, data_url: str) -> list[dict]:
+    def _user_text(self) -> str:
         if self.history:
             memory = "Recent actions, oldest first:\n" + "\n".join(self.history)
         else:
             memory = "This is your first decision of the episode."
+        return f"Command: {self.command}\n{memory}\nCurrent view:"
+
+    def _messages(self, data_url: str) -> list[dict]:
         content = [
-            {"type": "text", "text": f"Command: {self.command}\n{memory}\nCurrent view:"},
+            {"type": "text", "text": self._user_text()},
             {"type": "image_url", "image_url": {
                 "url": data_url,
                 "detail": os.environ.get("VLM_IMAGE_DETAIL", "high"),
@@ -109,6 +112,8 @@ class Policy(ABC):
     def _call_vlm(self, data_url: str) -> dict:
         tool = self.tool()
         name = tool["function"]["name"]
+        if is_reasoning_model(self.model):
+            return self._call_responses(tool, name, data_url)
         resp = self.client.chat.completions.create(
             model=self.model,
             messages=self._messages(data_url),
@@ -121,6 +126,35 @@ class Policy(ABC):
         if not calls:
             raise ValueError("no tool call in response")
         return json.loads(calls[0].function.arguments)
+
+    def _call_responses(self, tool: dict, name: str, data_url: str) -> dict:
+        """gpt-5.x path: forced function tools + reasoning_effort are only
+        served on the Responses API (gpt-5.4 rejects them on chat completions).
+        No temperature; reasoning tokens count against max_output_tokens, so
+        the cap sits far above the ~100 tokens the tool call itself needs."""
+        fn = tool["function"]
+        resp = self.client.responses.create(
+            model=self.model,
+            input=[
+                {"role": "system",
+                 "content": [{"type": "input_text", "text": self.system_prompt}]},
+                {"role": "user", "content": [
+                    {"type": "input_text", "text": self._user_text()},
+                    {"type": "input_image", "image_url": data_url,
+                     "detail": os.environ.get("VLM_IMAGE_DETAIL", "high")},
+                ]},
+            ],
+            tools=[{"type": "function", "name": fn["name"],
+                    "description": fn.get("description", ""),
+                    "parameters": fn["parameters"]}],
+            tool_choice={"type": "function", "name": name},
+            reasoning={"effort": os.environ.get("VLM_REASONING_EFFORT", "low")},
+            max_output_tokens=2000,
+        )
+        for item in resp.output:
+            if getattr(item, "type", None) == "function_call":
+                return json.loads(item.arguments)
+        raise ValueError("no tool call in response")
 
     # ---- main entry
 
