@@ -6,8 +6,8 @@ VectorVLA) — a frontier multimodal model (cloud VLM) that perceives, reasons, 
 by Reactor, from plain-English commands, using LingBot's native action API as its body.
 
 **`PIVOT.md` is the source of truth — architecture, 3-hour schedule, gates, risks, budget.
-Read it before starting work; tick its checkboxes as items land.** `PLAN.md` is the archived
-original (vector-BC) plan; its Phase-0 findings remain valid and are consumed via
+Read it before starting work; tick its checkboxes as items land.** The archived vector-BC
+plan (formerly `PLAN.md`) has been removed; its measured findings live on in
 `measured.json`.
 
 Related repo: `~/projects/mnemos` — the bachelor-thesis SO-101 manipulation track, where the
@@ -23,7 +23,7 @@ original frozen-encoder BC recipe lives on. Paused during the hackathon; don't m
   the `image_accepted` message → `send_command("set_prompt", {"prompt": ...})` →
   `send_command("start", {})`. `start` before both are set returns `command_error`.
 - Frames arrive via `@reactor.on_frame` as `(H, W, 3)` uint8 RGB numpy arrays;
-  stream is 1664×960, <1 s latency. **Docs say 16 fps but Phase 0 measured ~40 fps content
+  stream is 1664×960, <1 s latency. **Docs say 16 fps but we measured ~40 fps content
   rate** (raw callback rate is higher still — duplicated deliveries during warmup; dedupe by
   content, not arrival). The callback runs synchronously on the SDK's event loop — copy into
   a drop-oldest ring buffer and return; inference happens elsewhere.
@@ -32,7 +32,7 @@ original frozen-encoder BC recipe lives on. Paused during the hackathon; don't m
   `set_look_horizontal` (`idle|left|right` — this is how you turn), `set_look_vertical`
   (`idle|up|down`). Send state changes only; to stop you must send `"idle"` explicitly.
   The VLM policy emits one enum per axis.
-- **Phase 0 measured (run_001, committed in `measured.json` — all code reads it from
+- **Measured (run_001, committed in `measured.json` — all code reads it from
   there):** chunk = 24 video frames ≈ 0.61 s → chunk rate ≈ 1.65 Hz; action-to-effect
   ≈ 1.5 s (1.12–1.57 s). The OSS priors (12 frames / 0.75 s / 1.33 Hz / 16 fps) are stale
   for the current deployment.
@@ -63,7 +63,7 @@ original frozen-encoder BC recipe lives on. Paused during the hackathon; don't m
   no billing events exist on the message channel). **`pause` does NOT stop the meter — only
   disconnecting does.** Disconnect (non-recoverable) between trials; never leave a session
   running idle. (Layout: the `dreampilot/` package is the live stack — module map in its
-  `__init__.py`; `tools/` holds the phase-0 measurement scripts and the offline gate. Live
+  `__init__.py`; `tests/` holds the measurement scripts and the offline gate. Live
   entry point: `python -m dreampilot` or the root `run_agent.py` shim.)
 - **Sequential control loop at ~0.5 Hz:** grab latest frame → VLM → send changed axes →
   sleep ≈2 s *measured from the send* → grab the next frame. Never a fixed timer from

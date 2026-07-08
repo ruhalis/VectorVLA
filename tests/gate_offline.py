@@ -7,7 +7,7 @@ Runs the exact live policy path (same Policy class, same frame_to_data_url) over
   3. directional sanity: printed per-frame actions + reasoning for eyeballing,
      plus a crude auto-check that the policy is not frozen on one action.
 
-    .venv/bin/python tools/gate_offline.py [--command "..."] [--n 20] [--mode full|fallback]
+    .venv/bin/python tests/gate_offline.py [--command "..."] [--n 20] [--mode full|fallback]
 
 Frames are fed sequentially through ONE policy instance so the text-memory
 (history) path is exercised exactly as it will be live.
@@ -25,7 +25,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))  # repo root — to
 from dreampilot.config import ROOT, load_env
 from dreampilot.policy import MODES, make_policy
 
-FRAMES_DIR = ROOT / "data" / "phase0" / "run_001" / "frames"
+FRAMES_DIR = ROOT / "data" / "measure" / "run_001" / "frames"
 DEFAULT_COMMAND = "go to the maypole in the middle of the square"
 
 

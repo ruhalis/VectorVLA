@@ -218,7 +218,7 @@ __marimo__/
 .streamlit/secrets.toml
 
 # VectorVLA
-# Working notes (PIVOT.md, PLAN.md, SDK_NOTES.md, ...) stay local —
+# Working notes (PIVOT.md, SDK_NOTES.md, ...) stay local —
 # only CLAUDE.md and READMEs are committed
 *.md
 !CLAUDE.md

@@ -1,6 +1,6 @@
-"""Offline self-test for phase0_analyze.py - costs zero credits.
+"""Offline self-test for analyze.py - costs zero credits.
 
-Fabricates a synthetic run directory that mimics what phase0_record.py writes
+Fabricates a synthetic run directory that mimics what record.py writes
 (events.jsonl, frames.jsonl, frames/) with known ground truth:
 
   - chunk_complete every 0.75 s, frames_emitted = 12  -> chunk_hz 1.333
@@ -11,7 +11,7 @@ Fabricates a synthetic run directory that mimics what phase0_record.py writes
 Then runs the analyzer and asserts the truth is recovered. Run this before
 spending credits on the live characterization.
 
-Usage: .venv/bin/python tools/phase0_selftest.py
+Usage: .venv/bin/python tests/selftest.py
 """
 
 from __future__ import annotations
@@ -27,7 +27,7 @@ import numpy as np
 from PIL import Image
 
 ROOT = Path(__file__).resolve().parents[1]
-RUN_DIR = ROOT / "data" / "phase0" / "_selftest"
+RUN_DIR = ROOT / "data" / "measure" / "_selftest"
 FPS = 16.0
 DT = 1.0 / FPS
 W, H = 160, 96
@@ -150,7 +150,7 @@ def main() -> None:
     print(f"synthetic run: {frame_i} frames, {len(events)} events")
 
     out = RUN_DIR / "measured_selftest.json"
-    analyzer = Path(__file__).with_name("phase0_analyze.py")
+    analyzer = Path(__file__).with_name("analyze.py")
     subprocess.run([sys.executable, str(analyzer), str(RUN_DIR), "-o", str(out)],
                    check=True, stdout=subprocess.DEVNULL)
     m = json.loads(out.read_text())

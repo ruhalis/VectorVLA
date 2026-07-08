@@ -1,6 +1,6 @@
 """One load point for everything read from disk/env: .env, measured.json, worlds.json.
 
-Re-measuring the deployment (tools/phase0_record.py + phase0_analyze.py) just
+Re-measuring the deployment (tests/record.py + tests/analyze.py) just
 regenerates measured.json; adding a world is a worlds.json entry plus a seed
 image. Nothing else in the codebase re-reads these files.
 """
@@ -33,7 +33,7 @@ def load_env(path: Union[str, Path, None] = None) -> None:
 
 @dataclass(frozen=True)
 class Measured:
-    """Deployment constants from the Phase 0 characterization (run_001)."""
+    """Deployment constants from the characterization run (run_001)."""
 
     latency_ms: int          # action command -> visible effect
     chunk_hz: Optional[float]

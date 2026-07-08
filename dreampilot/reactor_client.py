@@ -12,7 +12,7 @@ Every live Reactor session goes through this module so that:
 
 Usage:
     session = ReactorSession(api_key=os.environ["REACTOR_API_KEY"],
-                             run_dir=Path("data/phase0/run_001"))
+                             run_dir=Path("data/measure/run_001"))
     await session.connect()
     await session.stage_world("seed.jpg", "A cobblestone village square...")
     ...

@@ -1,11 +1,11 @@
-"""Minimal live test of the manual reconnect path (PLAN.md Phase 0).
+"""Minimal live test of the manual reconnect path.
 
 Connects, stages a world, forces a recoverable transport drop, calls
 reconnect(), and verifies frames flow again. ~60 s READY time (~$0.25,
-including the billed recovery gap). Kept separate from phase0_record.py so
+including the billed recovery gap). Kept separate from record.py so
 the main characterization run doesn't pay for the 30 s recovery window.
 
-Usage: .venv/bin/python tools/phase0_reconnect.py --image assets/village_seed.jpg
+Usage: .venv/bin/python tests/reconnect.py --image assets/village_seed.jpg
 """
 
 from __future__ import annotations
@@ -25,7 +25,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))  # repo root — to
 
 from dreampilot.reactor_client import ReactorSession, setup_logging
 
-logger = logging.getLogger("vectorvla.phase0.reconnect")
+logger = logging.getLogger("vectorvla.reconnect")
 
 
 async def main() -> None:
@@ -44,7 +44,7 @@ async def main() -> None:
     if not api_key:
         sys.exit("REACTOR_API_KEY is not set")
 
-    run_dir = Path(args.run_dir or f"data/phase0/reconnect_{datetime.now():%Y%m%d_%H%M%S}")
+    run_dir = Path(args.run_dir or f"data/measure/reconnect_{datetime.now():%Y%m%d_%H%M%S}")
     setup_logging()
 
     # auto_reconnect off: this test drives reconnect() by hand to time it.

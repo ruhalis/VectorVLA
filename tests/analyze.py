@@ -1,6 +1,6 @@
-"""Phase 0 offline analysis: run directory -> measured.json (PLAN.md Phase 0 gate).
+"""Offline analysis: run directory -> measured.json.
 
-Reads events.jsonl / frames.jsonl / frames/ produced by phase0_record.py and
+Reads events.jsonl / frames.jsonl / frames/ produced by record.py and
 computes, fully offline:
 
   - chunk_hz + frames per chunk (from chunk_complete timing and frames_emitted)
@@ -13,7 +13,7 @@ computes, fully offline:
 measured.json is committed; all downstream code reads constants from it.
 
 Usage:
-    .venv/bin/python tools/phase0_analyze.py data/phase0/<run> [-o measured.json]
+    .venv/bin/python tests/analyze.py data/measure/<run> [-o measured.json]
 """
 
 from __future__ import annotations

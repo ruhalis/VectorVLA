@@ -1,5 +1,5 @@
 {
-  "run_dir": "data/phase0/run_001",
+  "run_dir": "data/measure/run_001",
   "chunking": {
     "n_chunks": 203,
     "chunk_interval_s_median": 0.6072,
@@ -128,7 +128,7 @@
     "screen_widths_per_s": 0.5579
   },
   "reconnect": {
-    "source_run": "data/phase0/reconnect_20260708_150639",
+    "source_run": "data/measure/reconnect_20260708_150639",
     "manual_reconnect_works": true,
     "reconnect_s": 6.34,
     "frames_flowing_after": true,

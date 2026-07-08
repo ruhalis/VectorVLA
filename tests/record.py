@@ -1,4 +1,4 @@
-"""Phase 0 live characterization run (PLAN.md Phase 0).
+"""Live characterization run.
 
 One short session (~3-4 min READY time, ~$0.7) that records everything needed
 to verify the control-loop priors offline:
@@ -10,12 +10,12 @@ to verify the control-loop priors offline:
   4. pause / resume / reset semantics; optional manual-reconnect test.
 
 Everything lands in a run directory (events.jsonl, frames.jsonl, frames/) that
-phase0_analyze.py turns into measured.json. No analysis happens live.
+analyze.py turns into measured.json. No analysis happens live.
 
 Usage:
-    .venv/bin/python tools/phase0_record.py --image seed.jpg \
+    .venv/bin/python tests/record.py --image seed.jpg \
         --prompt "A cobblestone village square with a stone fountain..." \
-        [--run-dir data/phase0/run_001] [--test-reconnect] [--skip-rotation]
+        [--run-dir data/measure/run_001] [--test-reconnect] [--skip-rotation]
 """
 
 from __future__ import annotations
@@ -33,7 +33,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))  # repo root — to
 
 from dreampilot.reactor_client import ReactorSession, setup_logging
 
-logger = logging.getLogger("vectorvla.phase0")
+logger = logging.getLogger("vectorvla.record")
 
 READY_BUDGET_S = 8 * 60  # hard abort: never let this run bill more than 8 min
 
@@ -190,7 +190,7 @@ async def main() -> None:
     if not Path(args.image).exists():
         sys.exit(f"seed image not found: {args.image}")
 
-    run_dir = Path(args.run_dir or f"data/phase0/{datetime.now():%Y%m%d_%H%M%S}")
+    run_dir = Path(args.run_dir or f"data/measure/{datetime.now():%Y%m%d_%H%M%S}")
     setup_logging()
     logger.info("run dir: %s", run_dir)
 
@@ -215,7 +215,7 @@ async def main() -> None:
         await session.disconnect()
 
     print(f"\nrun complete: {run_dir}")
-    print(f"next: .venv/bin/python tools/phase0_analyze.py {run_dir}")
+    print(f"next: .venv/bin/python tests/analyze.py {run_dir}")
 
 
 if __name__ == "__main__":
