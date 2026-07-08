@@ -22,4 +22,13 @@ def make_vlm_client():
 
 
 def default_model() -> str:
-    return os.environ.get("VLM_MODEL", "gpt-4o")
+    # gpt-5.4 @ effort=low: gate-tested 2026-07-08 — 20/20 valid, median 2.2 s
+    # at width 1152 (gpt-4o was 1.7 s but flagged premature arrivals).
+    return os.environ.get("VLM_MODEL", "gpt-5.4")
+
+
+def is_reasoning_model(model: str) -> bool:
+    """gpt-5.x / o-series: no temperature, max_completion_tokens instead of
+    max_tokens, and reasoning tokens that must be capped via reasoning_effort
+    or a decision blows the control-loop latency budget."""
+    return model.startswith(("gpt-5", "o3", "o4"))
