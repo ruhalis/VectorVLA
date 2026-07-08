@@ -1,0 +1,6 @@
+# DreamPilot (see PIVOT.md) — install in ONE resolve so uv reconciles the SDK's numpy pin:
+#   uv venv --python 3.12 && uv pip install -r requirements.txt
+reactor-sdk==0.8.0
+openai
+pillow
+numpy
