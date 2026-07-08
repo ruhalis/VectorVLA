@@ -34,6 +34,13 @@ from dreampilot.vlm import default_model, is_reasoning_model, make_vlm_client
 
 logger = logging.getLogger("vectorvla.policy")
 
+# Turn magnitude = rotation speed x pulse length, so a fine turn is a SHORTER
+# pulse on the same axis: the default 2 s pulse swings ~30 deg, which
+# overshoots any target that is nearly centered. 0.7 s stays just above one
+# chunk (~0.61 s measured in run_001), so the short pulse still spans a chunk
+# boundary and reliably takes effect -> roughly 10 deg.
+ADJUST_PULSE_S = 0.7
+
 
 @dataclass
 class Decision:
@@ -45,6 +52,7 @@ class Decision:
     ok: bool            # False -> VLM failed this tick, state was held
     latency_s: float
     raw: Optional[dict] = None
+    pulse_s: Optional[float] = None  # policy override of the pulse length; None -> runner --period
 
     @property
     def action(self) -> dict:
@@ -53,9 +61,10 @@ class Decision:
     def line(self) -> str:
         flag = "" if self.ok else " [HELD]"
         arrived = " ARRIVED" if self.arrived else ""
+        pulse = f" pulse={self.pulse_s:.1f}s" if self.pulse_s is not None else ""
         return (f"move={self.movement:<12} look_h={self.look_horizontal:<5} "
                 f"look_v={self.look_vertical:<4} {self.latency_s:4.1f}s"
-                f"{arrived}{flag} | {self.reasoning}")
+                f"{pulse}{arrived}{flag} | {self.reasoning}")
 
 
 class Policy(ABC):
@@ -85,7 +94,8 @@ class Policy(ABC):
         """Tool args -> {*AXES, "arrived", "reasoning"}; raise on anything invalid.
         May include "action_name" (the mode's own vocabulary) — used only for
         the text-memory history so the model sees its past choices in the same
-        terms its prompt uses."""
+        terms its prompt uses — and "pulse_s" (a shorter pulse for fine turns;
+        None/absent -> the runner's --period)."""
 
     # ---- prompt assembly
 
@@ -172,10 +182,11 @@ class Policy(ABC):
                             ok=False, latency_s=time.monotonic() - t0)
         arrived = parsed.pop("arrived")
         reasoning = parsed.pop("reasoning")
+        pulse_s = parsed.pop("pulse_s", None)
         label = parsed.pop("action_name", None) or (
             f"move={parsed['movement']} look_h={parsed['look_horizontal']}"
             f" look_v={parsed['look_vertical']}")
         self.state = parsed
         self.history.append(f"- {label} arrived={arrived} | {reasoning}")
-        return Decision(**parsed, arrived=arrived, reasoning=reasoning,
-                        ok=True, latency_s=time.monotonic() - t0, raw=args)
+        return Decision(**parsed, arrived=arrived, reasoning=reasoning, ok=True,
+                        latency_s=time.monotonic() - t0, raw=args, pulse_s=pulse_s)

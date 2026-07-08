@@ -100,8 +100,9 @@ async def run_episode(session: ReactorSession, command: str, mode: str,
         if decision.ok:
             # Pulse: apply the single action, let it play out, then stop it —
             # actions are persistent, so the explicit idle is what ends the pulse.
+            # The policy may shorten the pulse (fine adjust turns); default --period.
             await session.set_action(**decision.action)
-            await asyncio.sleep(period_s)
+            await asyncio.sleep(decision.pulse_s or period_s)
             await session.zero_actions()
         # On failure nothing was sent — the world is already stopped; either
         # way, wait for a settled view before the next decision.

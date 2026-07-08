@@ -3,7 +3,7 @@ and a tiny deterministic controller turns that into actions."""
 
 from __future__ import annotations
 
-from dreampilot.policy.base import Policy
+from dreampilot.policy.base import ADJUST_PULSE_S, Policy
 
 SYSTEM_PROMPT = """\
 You are the eyes of a navigation agent inside a 3D world, looking at its \
@@ -44,14 +44,16 @@ class ScriptedSearchPolicy(Policy):
         side = args.get("side")
         if side not in ("left", "center", "right"):
             raise ValueError(f"invalid side={side!r}")
-        # One axis per pulse (same motion model as the full mode): turn until
-        # the target is centered, only then walk toward it.
+        # One axis per pulse (same motion model as the full mode). Search spins
+        # use the full pulse (~30 deg); corrections toward a visible target use
+        # the short adjust pulse (~10 deg) — a full turn overshoots and hunts.
         if not visible:
             action = {"movement": "idle", "look_horizontal": "right", "look_vertical": "idle"}
         elif side == "center":
             action = {"movement": "forward", "look_horizontal": "idle", "look_vertical": "idle"}
         else:
-            action = {"movement": "idle", "look_horizontal": side, "look_vertical": "idle"}
+            action = {"movement": "idle", "look_horizontal": side, "look_vertical": "idle",
+                      "pulse_s": ADJUST_PULSE_S}
         action["arrived"] = bool(args.get("arrived", False))
         action["reasoning"] = str(args.get("reasoning", ""))[:200]
         return action
