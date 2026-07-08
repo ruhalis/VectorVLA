@@ -13,7 +13,7 @@ Everything lands in a run directory (events.jsonl, frames.jsonl, frames/) that
 phase0_analyze.py turns into measured.json. No analysis happens live.
 
 Usage:
-    .venv/bin/python phase0_record.py --image seed.jpg \
+    .venv/bin/python tools/phase0_record.py --image seed.jpg \
         --prompt "A cobblestone village square with a stone fountain..." \
         [--run-dir data/phase0/run_001] [--test-reconnect] [--skip-rotation]
 """
@@ -29,7 +29,9 @@ import time
 from datetime import datetime
 from pathlib import Path
 
-from reactor_client import ReactorSession, setup_logging
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))  # repo root — tools run as plain scripts
+
+from dreampilot.reactor_client import ReactorSession, setup_logging
 
 logger = logging.getLogger("vectorvla.phase0")
 
@@ -213,7 +215,7 @@ async def main() -> None:
         await session.disconnect()
 
     print(f"\nrun complete: {run_dir}")
-    print(f"next: .venv/bin/python phase0_analyze.py {run_dir}")
+    print(f"next: .venv/bin/python tools/phase0_analyze.py {run_dir}")
 
 
 if __name__ == "__main__":

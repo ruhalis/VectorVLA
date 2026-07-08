@@ -59,16 +59,18 @@ original frozen-encoder BC recipe lives on. Paused during the hackathon; don't m
 - **Live sessions cost real money ($11.88/hr = 33 credits/s, billed per wall-clock second
   from READY).** Offline-first: develop and gate the prompt against recorded run_001 frames;
   connect live only for closed-loop runs and demos. Every session must go through
-  `reactor_client.py` so the credit meter logs the burn (computed client-side — no billing
-  events exist on the message channel). **`pause` does NOT stop the meter — only
+  `dreampilot/reactor_client.py` so the credit meter logs the burn (computed client-side —
+  no billing events exist on the message channel). **`pause` does NOT stop the meter — only
   disconnecting does.** Disconnect (non-recoverable) between trials; never leave a session
-  running idle.
+  running idle. (Layout: the `dreampilot/` package is the live stack — module map in its
+  `__init__.py`; `tools/` holds the phase-0 measurement scripts and the offline gate. Live
+  entry point: `python -m dreampilot` or the root `run_agent.py` shim.)
 - **Sequential control loop at ~0.5 Hz:** grab latest frame → VLM → send changed axes →
   sleep ≈2 s *measured from the send* → grab the next frame. Never a fixed timer from
   frame-grab: action-to-effect is 1.5 s, and the next observation must postdate the previous
   action's effect or the policy oscillates.
 - **VLM output is enforced JSON** (tool-calling / structured outputs, not parse-and-pray),
-  validated against the enums in `reactor_client.py`. On any failure, hold the previous
+  validated against the enums in `dreampilot/actions.py`. On any failure, hold the previous
   action state (persistent actions make "do nothing" safe) and retry next tick. Never block
   the frame callback.
 - **Arrival:** zero movement on the *first* `arrived`, fire the banner only on the second
@@ -76,14 +78,15 @@ original frozen-encoder BC recipe lives on. Paused during the hackathon; don't m
   and awaits the next command on stdin — multiple commands per session (the judge demo
   issues a second command in the same world).
 - **One frame path everywhere.** The downscale + JPEG-encode that builds the VLM prompt
-  lives in `vlm_policy.py` and is used by both the offline gate (recorded frames) and the
-  live loop. A second copy of that code is a bug even if identical today.
+  lives in `dreampilot/frames.py` and is used by both the offline gate (recorded frames)
+  and the live loop. A second copy of that code is a bug even if identical today.
 - **Policy memory:** vision = latest frame only; text = the VLM's last 3–5 actions +
   one-line reasonings (cheap hysteresis against turn-left/turn-right hunting). No frame
   history in the prompt.
 - **The fallback is a mode, not a rewrite:** the scripted-search fallback (VLM answers only
-  "landmark visible? left/center/right?" + a tiny controller) is a prompt/schema swap inside
-  `vlm_policy.py`, so the T+1:00 go/no-go is a config change.
+  "landmark visible? left/center/right?" + a tiny controller) is `ScriptedSearchPolicy` in
+  `dreampilot/policy/`, selected with `--mode fallback`. A new behavior is a new `Policy`
+  subclass registered in `MODES` — never a runner edit.
 - **World prompts are static scene descriptions — no motion verbs.** Motion language in the
   prompt ("the camera pans across") overrides movement commands and silently fights the
   policy.

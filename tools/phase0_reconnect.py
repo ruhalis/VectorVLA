@@ -5,7 +5,7 @@ reconnect(), and verifies frames flow again. ~60 s READY time (~$0.25,
 including the billed recovery gap). Kept separate from phase0_record.py so
 the main characterization run doesn't pay for the 30 s recovery window.
 
-Usage: .venv/bin/python phase0_reconnect.py --image assets/village_seed.jpg
+Usage: .venv/bin/python tools/phase0_reconnect.py --image assets/village_seed.jpg
 """
 
 from __future__ import annotations
@@ -21,7 +21,9 @@ from pathlib import Path
 
 from reactor_sdk import ReactorStatus
 
-from reactor_client import ReactorSession, setup_logging
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))  # repo root — tools run as plain scripts
+
+from dreampilot.reactor_client import ReactorSession, setup_logging
 
 logger = logging.getLogger("vectorvla.phase0.reconnect")
 

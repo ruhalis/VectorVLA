@@ -13,7 +13,7 @@ computes, fully offline:
 measured.json is committed; all downstream code reads constants from it.
 
 Usage:
-    .venv/bin/python phase0_analyze.py data/phase0/<run> [-o measured.json]
+    .venv/bin/python tools/phase0_analyze.py data/phase0/<run> [-o measured.json]
 """
 
 from __future__ import annotations

@@ -34,6 +34,8 @@ from typing import Any, Optional
 import numpy as np
 from reactor_sdk import Reactor, ReactorStatus
 
+from dreampilot.actions import LOOKS_H, LOOKS_V, MOVEMENTS
+
 logger = logging.getLogger("vectorvla.client")
 
 # Billing facts (SDK_NOTES.md section 6) - verified 2026-07.
@@ -44,11 +46,6 @@ SESSION_HARD_CAP_S = 1200  # 20 min, then the server terminates.
 # Documented as 16 fps but run_001 measured ~40 fps content rate (24-frame
 # chunks at 1.65 Hz). Downstream code reads the real value from measured.json.
 STREAM_FPS_DOCUMENTED = 16
-
-# LingBot action vocabulary (SDK_NOTES.md section 3).
-MOVEMENTS = ("idle", "forward", "back", "strafe_left", "strafe_right")
-LOOKS_H = ("idle", "left", "right")
-LOOKS_V = ("idle", "up", "down")
 
 
 def setup_logging(level: int = logging.INFO) -> None:

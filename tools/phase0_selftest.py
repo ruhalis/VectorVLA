@@ -11,7 +11,7 @@ Fabricates a synthetic run directory that mimics what phase0_record.py writes
 Then runs the analyzer and asserts the truth is recovered. Run this before
 spending credits on the live characterization.
 
-Usage: .venv/bin/python phase0_selftest.py
+Usage: .venv/bin/python tools/phase0_selftest.py
 """
 
 from __future__ import annotations
@@ -26,7 +26,8 @@ from pathlib import Path
 import numpy as np
 from PIL import Image
 
-RUN_DIR = Path("data/phase0/_selftest")
+ROOT = Path(__file__).resolve().parents[1]
+RUN_DIR = ROOT / "data" / "phase0" / "_selftest"
 FPS = 16.0
 DT = 1.0 / FPS
 W, H = 160, 96
@@ -149,7 +150,8 @@ def main() -> None:
     print(f"synthetic run: {frame_i} frames, {len(events)} events")
 
     out = RUN_DIR / "measured_selftest.json"
-    subprocess.run([sys.executable, "phase0_analyze.py", str(RUN_DIR), "-o", str(out)],
+    analyzer = Path(__file__).with_name("phase0_analyze.py")
+    subprocess.run([sys.executable, str(analyzer), str(RUN_DIR), "-o", str(out)],
                    check=True, stdout=subprocess.DEVNULL)
     m = json.loads(out.read_text())
 

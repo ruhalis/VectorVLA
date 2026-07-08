@@ -1,13 +1,13 @@
 """Offline go/no-go gate for the VLM policy (PIVOT.md T+0 block). Zero credits.
 
-Runs the exact live policy path (same VLMPolicy, same frame_to_data_url) over
+Runs the exact live policy path (same Policy class, same frame_to_data_url) over
 ~20 recorded run_001 frames with a landmark command and checks:
   1. valid JSON every time (any held/failed decision fails the gate),
   2. decision latency: median <= 3 s (the PIVOT risk threshold),
   3. directional sanity: printed per-frame actions + reasoning for eyeballing,
      plus a crude auto-check that the policy is not frozen on one action.
 
-    .venv/bin/python gate_offline.py [--command "..."] [--n 20] [--mode full|fallback]
+    .venv/bin/python tools/gate_offline.py [--command "..."] [--n 20] [--mode full|fallback]
 
 Frames are fed sequentially through ONE policy instance so the text-memory
 (history) path is exercised exactly as it will be live.
@@ -17,11 +17,15 @@ from __future__ import annotations
 
 import argparse
 import statistics
+import sys
 from pathlib import Path
 
-from vlm_policy import VLMPolicy, load_env
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))  # repo root — tools run as plain scripts
 
-FRAMES_DIR = Path(__file__).with_name("data") / "phase0" / "run_001" / "frames"
+from dreampilot.config import ROOT, load_env
+from dreampilot.policy import MODES, make_policy
+
+FRAMES_DIR = ROOT / "data" / "phase0" / "run_001" / "frames"
 DEFAULT_COMMAND = "go to the maypole in the middle of the square"
 
 
@@ -40,11 +44,11 @@ def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--command", default=DEFAULT_COMMAND)
     ap.add_argument("--n", type=int, default=20)
-    ap.add_argument("--mode", choices=("full", "fallback"), default="full")
+    ap.add_argument("--mode", choices=sorted(MODES), default="full")
     args = ap.parse_args()
 
     frames = pick_frames(args.n)
-    policy = VLMPolicy(args.command, mode=args.mode)
+    policy = make_policy(args.command, mode=args.mode)
     print(f"gate: {len(frames)} frames | mode={args.mode} | model={policy.model}")
     print(f"command: {args.command!r}\n")
 
