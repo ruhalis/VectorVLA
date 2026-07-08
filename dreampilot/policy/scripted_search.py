@@ -44,11 +44,14 @@ class ScriptedSearchPolicy(Policy):
         side = args.get("side")
         if side not in ("left", "center", "right"):
             raise ValueError(f"invalid side={side!r}")
+        # One axis per pulse (same motion model as the full mode): turn until
+        # the target is centered, only then walk toward it.
         if not visible:
             action = {"movement": "idle", "look_horizontal": "right", "look_vertical": "idle"}
+        elif side == "center":
+            action = {"movement": "forward", "look_horizontal": "idle", "look_vertical": "idle"}
         else:
-            look = {"left": "left", "center": "idle", "right": "right"}[side]
-            action = {"movement": "forward", "look_horizontal": look, "look_vertical": "idle"}
+            action = {"movement": "idle", "look_horizontal": side, "look_vertical": "idle"}
         action["arrived"] = bool(args.get("arrived", False))
         action["reasoning"] = str(args.get("reasoning", ""))[:200]
         return action

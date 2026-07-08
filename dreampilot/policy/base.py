@@ -82,7 +82,10 @@ class Policy(ABC):
 
     @abstractmethod
     def interpret(self, args: dict) -> dict:
-        """Tool args -> {*AXES, "arrived", "reasoning"}; raise on anything invalid."""
+        """Tool args -> {*AXES, "arrived", "reasoning"}; raise on anything invalid.
+        May include "action_name" (the mode's own vocabulary) — used only for
+        the text-memory history so the model sees its past choices in the same
+        terms its prompt uses."""
 
     # ---- prompt assembly
 
@@ -135,10 +138,10 @@ class Policy(ABC):
                             ok=False, latency_s=time.monotonic() - t0)
         arrived = parsed.pop("arrived")
         reasoning = parsed.pop("reasoning")
+        label = parsed.pop("action_name", None) or (
+            f"move={parsed['movement']} look_h={parsed['look_horizontal']}"
+            f" look_v={parsed['look_vertical']}")
         self.state = parsed
-        self.history.append(
-            f"- move={parsed['movement']} look_h={parsed['look_horizontal']}"
-            f" look_v={parsed['look_vertical']} arrived={arrived} | {reasoning}"
-        )
+        self.history.append(f"- {label} arrived={arrived} | {reasoning}")
         return Decision(**parsed, arrived=arrived, reasoning=reasoning,
                         ok=True, latency_s=time.monotonic() - t0, raw=args)

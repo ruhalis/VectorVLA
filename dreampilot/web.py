@@ -458,7 +458,7 @@ def main() -> None:
     ap.add_argument("--host", default="127.0.0.1")
     ap.add_argument("--port", type=int, default=8000)
     ap.add_argument("--period", type=float, default=2.0,
-                    help="episode decision period (sleep after each send)")
+                    help="pulse length: how long each single action runs before the stop")
     ap.add_argument("--timeout", type=float, default=90.0, help="episode timeout")
     ap.add_argument("--idle-limit", type=float, default=180.0,
                     help="auto-disconnect a READY live session idle this long")

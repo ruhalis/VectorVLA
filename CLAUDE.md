@@ -31,7 +31,8 @@ original frozen-encoder BC recipe lives on. Paused during the hackathon; don't m
   `set_movement` (`idle|forward|back|strafe_left|strafe_right` — **strafe-only, no turning**),
   `set_look_horizontal` (`idle|left|right` — this is how you turn), `set_look_vertical`
   (`idle|up|down`). Send state changes only; to stop you must send `"idle"` explicitly.
-  The VLM policy emits one enum per axis.
+  The VLM policy picks ONE single action per pulse (e.g. `turn_left`, `forward`), which
+  maps to one active axis with the others idle.
 - **Measured (run_001, committed in `measured.json` — all code reads it from
   there):** chunk = 24 video frames ≈ 0.61 s → chunk rate ≈ 1.65 Hz; action-to-effect
   ≈ 1.5 s (1.12–1.57 s). The OSS priors (12 frames / 0.75 s / 1.33 Hz / 16 fps) are stale
@@ -65,14 +66,17 @@ original frozen-encoder BC recipe lives on. Paused during the hackathon; don't m
   running idle. (Layout: the `dreampilot/` package is the live stack — module map in its
   `__init__.py`; `tests/` holds the measurement scripts and the offline gate. Live
   entry point: `python -m dreampilot` or the root `run_agent.py` shim.)
-- **Sequential control loop at ~0.5 Hz:** grab latest frame → VLM → send changed axes →
-  sleep ≈2 s *measured from the send* → grab the next frame. Never a fixed timer from
-  frame-grab: action-to-effect is 1.5 s, and the next observation must postdate the previous
-  action's effect or the policy oscillates.
+- **Sequential PULSE control loop:** grab latest settled frame → VLM picks ONE action
+  (single axis; e.g. `turn_left`, `forward`, `stop`) → send it → sleep `--period` ≈2 s
+  (the pulse) → send idle (actions are persistent — the explicit stop ends the pulse) →
+  sleep `--settle` 3 s (action-to-effect is 1.5 s + server round-trip) → next frame. Every observation
+  postdates the previous pulse completely, or the policy acts on stale motion and
+  oscillates. Never move + turn in the same pulse.
 - **VLM output is enforced JSON** (tool-calling / structured outputs, not parse-and-pray),
-  validated against the enums in `dreampilot/actions.py`. On any failure, hold the previous
-  action state (persistent actions make "do nothing" safe) and retry next tick. Never block
-  the frame callback.
+  validated against the action vocabulary in the policy (mapped to the axis enums in
+  `dreampilot/actions.py`). On any failure, send nothing — the world is already stopped
+  between pulses, so "do nothing" is safe — and retry next tick. Never block the frame
+  callback.
 - **Arrival:** zero movement on the *first* `arrived`, fire the banner only on the second
   consecutive one. 90 s timeout → `zero_actions()`. After success the runner zeroes actions
   and awaits the next command on stdin — multiple commands per session (the judge demo

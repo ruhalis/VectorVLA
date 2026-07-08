@@ -5,11 +5,13 @@
         --prompt "A quiet cobblestone village square..." \
         [--command "go to the maypole"] [--mode full|fallback]
 
-Control loop (hard rules from PIVOT.md / CLAUDE.md):
-  - Sequential at ~0.5 Hz: grab LATEST frame -> VLM -> send changed axes ->
-    sleep ~2 s measured FROM THE SEND -> next frame. Never a fixed timer from
-    frame-grab: action-to-effect is ~1.5 s (measured.json) and the next
-    observation must postdate the previous action's effect.
+Control loop (hard rules from PIVOT.md / CLAUDE.md) — PULSE mode:
+  - Sequential pulses: grab LATEST settled frame -> VLM picks ONE action ->
+    send it -> let it run --period s -> send idle (actions are persistent;
+    the explicit stop ends the pulse) -> wait --settle s (default 3 s: measured
+    action-to-effect is ~1.5 s plus server round-trip) -> next frame. Every
+    observation postdates the previous pulse completely, so the policy sees
+    what its last action did instead of acting on stale motion.
   - Arrival: zero movement on the FIRST arrived, success banner only on the
     SECOND consecutive one. 90 s timeout -> zero actions.
   - After each episode the runner zeroes actions and awaits the next command
@@ -37,7 +39,12 @@ from dreampilot.reactor_client import ReactorSession, setup_logging
 
 logger = logging.getLogger("vectorvla.agent")
 
-ACTION_TO_EFFECT_S = load_measured().action_to_effect_s  # ~1.5 s — why the sleep is ~2 s
+ACTION_TO_EFFECT_S = load_measured().action_to_effect_s  # ~1.5 s measured
+# Wait after each pulse's stop before feeding the next frame. Deliberately
+# generous vs. the measured 1.5 s: server round-trip pushes the real stop
+# later, and deciding on a frame that is still moving re-creates the
+# act-while-already-moving oscillation.
+DEFAULT_SETTLE_S = 3.0
 
 DEFAULT_PROMPT = (
     "A quiet European village square on a sunny summer day. A tall maypole "
@@ -49,9 +56,13 @@ DEFAULT_PROMPT = (
 
 async def run_episode(session: ReactorSession, command: str, mode: str,
                       timeout_s: float, period_s: float, expiry_margin_s: float,
-                      on_decision: Optional[Callable[[float, Decision], None]] = None) -> bool:
+                      on_decision: Optional[Callable[[float, Decision], None]] = None,
+                      settle_s: Optional[float] = None) -> bool:
+    if settle_s is None:
+        settle_s = DEFAULT_SETTLE_S  # stop must be visible before observing
     policy = make_policy(command, mode=mode)
-    print(f"\n=== EPISODE [{mode}] command: {command!r} (timeout {timeout_s:.0f}s) ===")
+    print(f"\n=== EPISODE [{mode}] command: {command!r} (timeout {timeout_s:.0f}s, "
+          f"pulse {period_s:.1f}s + settle {settle_s:.1f}s) ===")
     t_start = time.monotonic()
     arrived_streak = 0
 
@@ -80,17 +91,21 @@ async def run_episode(session: ReactorSession, command: str, mode: str,
                 print(f"\n*** ARRIVED: {command!r} in {elapsed:.0f}s "
                       f"({policy.calls} decisions, {policy.failures} held) ***\n")
                 return True
-            # First arrived: stop translating, keep looking; confirm next tick.
-            await session.set_action(movement="idle",
-                                     look_horizontal=decision.look_horizontal,
-                                     look_vertical=decision.look_vertical)
-        else:
-            arrived_streak = 0
-            if decision.ok:  # on failure hold previous state — send nothing
-                await session.set_action(**decision.action)
+            # First arrived: stay stopped, confirm from the next settled frame.
+            await session.zero_actions()
+            await asyncio.sleep(settle_s)
+            continue
+        arrived_streak = 0
 
-        # Cadence measured from the send (hard rule) — set_action just returned.
-        await asyncio.sleep(period_s)
+        if decision.ok:
+            # Pulse: apply the single action, let it play out, then stop it —
+            # actions are persistent, so the explicit idle is what ends the pulse.
+            await session.set_action(**decision.action)
+            await asyncio.sleep(period_s)
+            await session.zero_actions()
+        # On failure nothing was sent — the world is already stopped; either
+        # way, wait for a settled view before the next decision.
+        await asyncio.sleep(settle_s)
 
     await session.zero_actions()
     print(f"\n--- episode ended without arrival after {time.monotonic() - t_start:.0f}s "
@@ -128,7 +143,10 @@ async def main() -> None:
                     help="set_rotation_speed_deg 0-30 (default server 5)")
     ap.add_argument("--timeout", type=float, default=90.0)
     ap.add_argument("--period", type=float, default=2.0,
-                    help="sleep after each send; ~0.5 Hz decisions")
+                    help="pulse length: how long each single action runs before the stop")
+    ap.add_argument("--settle", type=float, default=None,
+                    help="wait after the stop before the next frame "
+                         f"(default {DEFAULT_SETTLE_S:.1f}s — covers server round-trip)")
     ap.add_argument("--run-dir", default=None)
     args = ap.parse_args()
     if args.world:
@@ -160,7 +178,8 @@ async def main() -> None:
                 if command in ("", "q", "quit"):
                     break
             success = await run_episode(session, command, args.mode,
-                                        args.timeout, args.period, expiry_margin_s=60)
+                                        args.timeout, args.period, expiry_margin_s=60,
+                                        settle_s=args.settle)
             if success:
                 await download_recording(session, run_dir)  # clip covers the win
             command = None  # next command from stdin
