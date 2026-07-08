@@ -4,3 +4,4 @@ reactor-sdk==0.8.0
 openai
 pillow
 numpy
+aiohttp  # web control room (dreampilot/web.py); also a reactor-sdk dependency

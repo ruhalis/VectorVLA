@@ -29,9 +29,10 @@ import os
 import time
 from datetime import datetime
 from pathlib import Path
+from typing import Callable, Optional
 
 from dreampilot.config import load_env, load_measured, load_worlds
-from dreampilot.policy import MODES, make_policy
+from dreampilot.policy import Decision, MODES, make_policy
 from dreampilot.reactor_client import ReactorSession, setup_logging
 
 logger = logging.getLogger("vectorvla.agent")
@@ -47,7 +48,8 @@ DEFAULT_PROMPT = (
 
 
 async def run_episode(session: ReactorSession, command: str, mode: str,
-                      timeout_s: float, period_s: float, expiry_margin_s: float) -> bool:
+                      timeout_s: float, period_s: float, expiry_margin_s: float,
+                      on_decision: Optional[Callable[[float, Decision], None]] = None) -> bool:
     policy = make_policy(command, mode=mode)
     print(f"\n=== EPISODE [{mode}] command: {command!r} (timeout {timeout_s:.0f}s) ===")
     t_start = time.monotonic()
@@ -68,6 +70,8 @@ async def run_episode(session: ReactorSession, command: str, mode: str,
         # Blocking VLM call off the event loop; frame callback never waits on it.
         decision = await asyncio.to_thread(policy.decide, frame)
         print(f"[{elapsed:5.1f}s] {decision.line()}")
+        if on_decision is not None:
+            on_decision(elapsed, decision)  # web UI hook; sync and non-blocking
 
         if decision.arrived:
             arrived_streak += 1
