@@ -218,8 +218,16 @@ __marimo__/
 .streamlit/secrets.toml
 
 # VectorVLA
+# Working notes (PIVOT.md, SDK_NOTES.md, ...) stay local —
+# only CLAUDE.md and READMEs are committed
+*.md
+!CLAUDE.md
+!README.md
+
 data/
 checkpoints/
 outputs/
 *.gif
 *.mp4
+# demo clips are committed deliberately (see demo/README.md)
+!demo/*.mp4

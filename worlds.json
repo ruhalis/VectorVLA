@@ -1,0 +1,17 @@
+{
+  "village": {
+    "image": "assets/village_seed.jpg",
+    "prompt": "A quiet European village square on a sunny summer day. A tall maypole decorated with a green wreath stands in the center of the cobblestone square, surrounded by red brick houses with tiled roofs and small green trees. Bright blue sky with scattered white clouds.",
+    "commands": ["go to the maypole in the center of the square", "walk up to one of the red brick houses"]
+  },
+  "lighthouse": {
+    "image": "assets/lighthouse_seed.jpg",
+    "prompt": "A small historic lighthouse with a cream-colored tower and red base on a grassy rocky point beside a calm river mouth, on a sunny day. Golden dune grass and dark rocks in the foreground, a distant shoreline with small houses across the blue water, scattered white clouds in a blue sky.",
+    "commands": ["walk up to the lighthouse", "go to the rocks by the water"]
+  },
+  "barn": {
+    "image": "assets/barn_seed.jpg",
+    "prompt": "A rural farmyard under a dramatic partly cloudy sky. A black wooden barn with a bright red roof and yellow lettering stands on a green lawn, and a dirt track runs past it toward a gray two-story farmhouse among tall pine trees. Autumn trees line the left side, with thick grass beside the track.",
+    "commands": ["walk up to the black barn with the red roof", "go to the gray two-story farmhouse"]
+  }
+}

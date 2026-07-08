@@ -1,0 +1,137 @@
+{
+  "run_dir": "data/measure/run_001",
+  "chunking": {
+    "n_chunks": 203,
+    "chunk_interval_s_median": 0.6072,
+    "chunk_interval_s_p10_p90": [
+      0.5001,
+      0.7188
+    ],
+    "chunk_hz": 1.6469,
+    "frames_per_chunk": 24.0,
+    "frames_emitted_cumulative": false,
+    "prior_chunk_hz": 1.33
+  },
+  "stream": {
+    "n_frames": 4827,
+    "raw_callback_fps_median": 59.94,
+    "nominal_fps_documented": 16.0,
+    "content_fps": 39.53
+  },
+  "action_latency": {
+    "trials": [
+      {
+        "index": 0,
+        "axis": "look_horizontal",
+        "value": "right",
+        "onset_s": 1.514
+      },
+      {
+        "index": 1,
+        "axis": "look_horizontal",
+        "value": "left",
+        "onset_s": 1.574
+      },
+      {
+        "index": 2,
+        "axis": "movement",
+        "value": "forward",
+        "onset_s": null
+      },
+      {
+        "index": 3,
+        "axis": "movement",
+        "value": "back",
+        "onset_s": null
+      },
+      {
+        "index": 4,
+        "axis": "look_horizontal",
+        "value": "right",
+        "onset_s": 1.118
+      },
+      {
+        "index": 5,
+        "axis": "look_horizontal",
+        "value": "left",
+        "onset_s": null
+      }
+    ],
+    "prior_max_s": 1.75,
+    "latency_s_median": 1.514,
+    "latency_s_max": 1.574,
+    "n_measured": 3
+  },
+  "rotation": {
+    "deg_setting": 15.0,
+    "pan_rate_screen_widths_per_s": 0.5579,
+    "seconds_per_screen_width": 1.79,
+    "deg_per_s_if_fov_90": 50.2,
+    "deg_per_s_if_fov_100": 55.8,
+    "n_samples": 119,
+    "note": "unit period of set_rotation_speed_deg is unresolved (needs FOV); use pan_rate at this setting as the teleop calibration constant and assume linear scaling in the setting"
+  },
+  "pause_resume_reset": {
+    "generation_paused_seen": true,
+    "generation_resumed_seen": true,
+    "frames_during_4s_pause": 25,
+    "pause_content": {
+      "motion_during_pause": 0.19,
+      "motion_baseline": 3.44,
+      "content_frozen": true
+    },
+    "generation_reset_seen": true,
+    "start_after_reset_without_restaging": false,
+    "reset_clears_staging": "No prompt set. Call set_prompt first."
+  },
+  "action_enums": {
+    "movement": [
+      "idle",
+      "forward",
+      "back",
+      "strafe_left",
+      "strafe_right"
+    ],
+    "look_horizontal": [
+      "idle",
+      "left",
+      "right"
+    ],
+    "look_vertical": [
+      "idle",
+      "up",
+      "down"
+    ],
+    "source": "server capabilities logged (see capabilities_raw) + schema",
+    "capabilities_raw": {
+      "protocol_version": "0.0.0",
+      "tracks": [
+        {
+          "name": "main_video",
+          "kind": "video",
+          "direction": "recvonly"
+        }
+      ]
+    }
+  },
+  "session_billing": {
+    "billed_seconds": 170.0,
+    "credits": 5610,
+    "dollars": 0.561
+  },
+  "chunk_hz": 1.6469,
+  "frames_per_chunk": 24.0,
+  "fps": 39.53,
+  "latency_ms": 1514,
+  "rotation_calibration": {
+    "deg_setting": 15.0,
+    "screen_widths_per_s": 0.5579
+  },
+  "reconnect": {
+    "source_run": "data/measure/reconnect_20260708_150639",
+    "manual_reconnect_works": true,
+    "reconnect_s": 6.34,
+    "frames_flowing_after": true,
+    "note": "transport drop preserves the session server-side ~30s (billed); reconnect() restores READY and the stream without restaging"
+  }
+}

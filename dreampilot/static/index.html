@@ -1,0 +1,594 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DreamPilot — control room</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌘</text></svg>">
+<style>
+  /* ---------------------------------------------------------------- tokens
+     A dark control room around one bright window (the dream).
+     Signature: --accent tells you WHO IS DRIVING — violet agent, amber human.
+  */
+  :root {
+    --bg: #101320;
+    --panel: #171b2c;
+    --panel-2: #1d2236;
+    --line: #2a3050;
+    --text: #e9e7dd;
+    --dim: #8f93a8;
+    --agent: #a08dff;
+    --human: #f0a848;
+    --ok: #7ed09a;
+    --bad: #e07070;
+    --accent: var(--agent);
+    --serif: "Iowan Old Style", Georgia, "Times New Roman", serif;
+    --sans: system-ui, -apple-system, "Segoe UI", sans-serif;
+    --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  }
+  body[data-driver="human"] { --accent: var(--human); }
+
+  * { box-sizing: border-box; margin: 0; }
+  html, body { height: 100%; }
+  body {
+    background: var(--bg); color: var(--text);
+    font: 14px/1.5 var(--sans);
+    display: flex; flex-direction: column;
+  }
+  button, input, textarea, select { font: inherit; color: inherit; }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  /* ---------------------------------------------------------------- header */
+  header {
+    display: flex; align-items: baseline; gap: 14px;
+    padding: 10px 18px; border-bottom: 1px solid var(--line);
+  }
+  .wordmark { font: italic 600 22px/1 var(--serif); letter-spacing: .01em; }
+  .wordmark .pilot { color: var(--accent); }
+  .tagline { color: var(--dim); font-size: 12px; }
+  .badge {
+    font: 600 10px/1 var(--mono); letter-spacing: .12em; text-transform: uppercase;
+    border: 1px solid var(--line); border-radius: 3px; padding: 4px 7px; color: var(--dim);
+  }
+  .badge.replay { color: var(--ok); border-color: color-mix(in srgb, var(--ok) 40%, transparent); }
+  .badge.live   { color: var(--bad); border-color: color-mix(in srgb, var(--bad) 40%, transparent); }
+  header .meter { margin-left: auto; display: flex; gap: 18px; align-items: baseline; }
+  .stat { font: 13px var(--mono); color: var(--dim); }
+  .stat b { color: var(--text); font-weight: 600; }
+  #wsdot { width: 8px; height: 8px; border-radius: 50%; background: var(--bad); align-self: center; }
+  #wsdot.on { background: var(--ok); }
+
+  /* ---------------------------------------------------------------- layout */
+  main {
+    flex: 1; min-height: 0;
+    display: grid; grid-template-columns: minmax(0, 1fr) 350px; gap: 14px;
+    padding: 14px 18px;
+  }
+  .left { display: flex; flex-direction: column; gap: 14px; min-width: 0; min-height: 0; }
+  .rail { display: flex; flex-direction: column; gap: 14px; min-height: 0; overflow-y: auto; }
+
+  /* ---------------------------------------------------------------- stage */
+  .stage {
+    position: relative; aspect-ratio: 26 / 15; background: #05060c;
+    border: 1px solid var(--line); border-radius: 10px; overflow: hidden;
+    transition: box-shadow .4s, border-color .4s;
+  }
+  body[data-state="ready"]   .stage,
+  body[data-state="episode"] .stage {
+    border-color: color-mix(in srgb, var(--accent) 55%, var(--line));
+    box-shadow: 0 0 34px -6px color-mix(in srgb, var(--accent) 45%, transparent);
+  }
+  .stage img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .veil {
+    position: absolute; inset: 0; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 10px;
+    background: radial-gradient(ellipse at 50% 40%, #141830 0%, #05060c 75%);
+    color: var(--dim); text-align: center; padding: 20px;
+  }
+  .veil .big { font: italic 500 20px var(--serif); color: var(--text); }
+  body[data-state="ready"] .veil, body[data-state="episode"] .veil,
+  body[data-state="disconnecting"] .veil { display: none; }
+  .spinner {
+    width: 22px; height: 22px; border-radius: 50%;
+    border: 2px solid var(--line); border-top-color: var(--accent);
+    animation: spin 1s linear infinite; display: none;
+  }
+  body[data-state="connecting"] .spinner { display: block; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .hud {
+    position: absolute; left: 12px; bottom: 12px; display: flex; gap: 6px;
+  }
+  .chip {
+    font: 12px var(--mono); padding: 4px 9px; border-radius: 5px;
+    background: rgba(6, 8, 16, .72); border: 1px solid var(--line); color: var(--dim);
+    backdrop-filter: blur(3px);
+  }
+  .chip.active { color: var(--text); border-color: var(--accent); }
+  .driverchip {
+    position: absolute; right: 12px; bottom: 12px;
+    font: 600 10px/1 var(--mono); letter-spacing: .12em; text-transform: uppercase;
+    padding: 5px 9px; border-radius: 5px; background: rgba(6, 8, 16, .72);
+    border: 1px solid var(--accent); color: var(--accent); display: none;
+  }
+  body[data-state="ready"] .driverchip, body[data-state="episode"] .driverchip { display: block; }
+
+  #banner {
+    position: absolute; inset: 0; display: none; align-items: center; justify-content: center;
+    background: color-mix(in srgb, var(--bg) 55%, transparent); backdrop-filter: blur(2px);
+  }
+  #banner.show { display: flex; }
+  #banner .card {
+    text-align: center; padding: 26px 44px; border-radius: 12px;
+    background: var(--panel); border: 1px solid var(--ok);
+    box-shadow: 0 0 60px -10px color-mix(in srgb, var(--ok) 55%, transparent);
+    animation: land .45s cubic-bezier(.2, 1.4, .4, 1);
+  }
+  #banner .word { font: italic 600 30px var(--serif); color: var(--ok); }
+  #banner .cmd { color: var(--dim); font: 13px var(--mono); margin-top: 6px; }
+  @keyframes land { from { transform: scale(.85); opacity: 0; } }
+
+  /* ---------------------------------------------------------------- feed */
+  .feed {
+    flex: 1; min-height: 120px; background: var(--panel);
+    border: 1px solid var(--line); border-radius: 10px;
+    display: flex; flex-direction: column; overflow: hidden;
+  }
+  .feed h2 { padding: 9px 14px 0; }
+  #lines { flex: 1; overflow-y: auto; padding: 8px 14px 12px; font: 12.5px/1.7 var(--mono); }
+  #lines .empty { color: var(--dim); font-style: italic; }
+  .ln { display: flex; gap: 10px; align-items: baseline; }
+  .ln .t { color: var(--dim); flex: none; width: 52px; text-align: right; }
+  .ln .ax { color: var(--accent); flex: none; width: 150px; white-space: nowrap; overflow: hidden; }
+  .ln .r { color: var(--text); opacity: .92; }
+  .ln.held .ax, .ln.held .r { color: var(--dim); }
+  .ln.meta .r { color: var(--dim); font-style: italic; }
+  .ln.err .r { color: var(--bad); }
+  .ln.win .r, .ln.win .ax { color: var(--ok); }
+
+  /* ---------------------------------------------------------------- rail */
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 14px; }
+  h2 {
+    font: 600 10px/1 var(--mono); letter-spacing: .16em; text-transform: uppercase;
+    color: var(--dim); margin-bottom: 10px;
+  }
+  .worlds { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
+  .world {
+    position: relative; border: 1px solid var(--line); border-radius: 8px; overflow: hidden;
+    padding: 0; cursor: pointer; background: var(--panel-2); aspect-ratio: 16/9;
+  }
+  .world img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .world .nm {
+    position: absolute; left: 0; right: 0; bottom: 0; padding: 3px 8px;
+    font: 600 11px var(--sans); text-transform: capitalize;
+    background: linear-gradient(transparent, rgba(5, 6, 12, .88));
+  }
+  .world[aria-pressed="true"] { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+  .world.uploadtile { display: flex; align-items: center; justify-content: center; color: var(--dim); font-size: 12px; }
+  label.small, .hint { display: block; color: var(--dim); font-size: 11.5px; margin: 10px 0 4px; }
+  textarea, input[type="text"] {
+    width: 100%; background: var(--panel-2); border: 1px solid var(--line);
+    border-radius: 7px; padding: 8px 10px; color: var(--text); resize: vertical;
+  }
+  textarea { min-height: 64px; font-size: 12.5px; }
+  .row { display: flex; gap: 8px; margin-top: 10px; }
+  .btn {
+    border: 1px solid var(--line); background: var(--panel-2); border-radius: 7px;
+    padding: 8px 14px; cursor: pointer; font-weight: 600;
+  }
+  .btn:hover:not(:disabled) { border-color: var(--accent); }
+  .btn:disabled { opacity: .45; cursor: default; }
+  .btn.primary { background: color-mix(in srgb, var(--accent) 22%, var(--panel-2)); border-color: var(--accent); }
+  .btn.danger  { border-color: color-mix(in srgb, var(--bad) 55%, var(--line)); color: var(--bad); }
+  .btn.wide { flex: 1; }
+
+  .seg { display: flex; border: 1px solid var(--line); border-radius: 7px; overflow: hidden; }
+  .seg button {
+    flex: 1; padding: 7px 0; background: transparent; border: 0; cursor: pointer;
+    color: var(--dim); font-weight: 600;
+  }
+  .seg button[aria-pressed="true"] { background: color-mix(in srgb, var(--accent) 24%, transparent); color: var(--text); }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+  .chips button {
+    font-size: 11.5px; color: var(--dim); background: var(--panel-2);
+    border: 1px solid var(--line); border-radius: 20px; padding: 4px 10px; cursor: pointer;
+  }
+  .chips button:hover { color: var(--text); border-color: var(--accent); }
+  .keys { font: 12px/2 var(--mono); color: var(--dim); }
+  .keys kbd {
+    display: inline-block; min-width: 20px; text-align: center; padding: 1px 5px;
+    border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 4px;
+    background: var(--panel-2); color: var(--text); margin-right: 2px;
+  }
+  #drive-agent, #drive-human { display: none; }
+  body[data-driver="agent"] #drive-agent { display: block; }
+  body[data-driver="human"] #drive-human { display: block; }
+  select {
+    background: var(--panel-2); border: 1px solid var(--line); border-radius: 7px; padding: 7px;
+  }
+
+  @media (max-width: 900px) {
+    main { grid-template-columns: 1fr; overflow-y: auto; }
+    .rail { overflow: visible; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    * { animation: none !important; transition: none !important; }
+  }
+</style>
+</head>
+<body data-state="idle" data-driver="agent">
+
+<header>
+  <div class="wordmark">Dream<span class="pilot">Pilot</span></div>
+  <div class="tagline">an agent living inside a dreamed world</div>
+  <span id="modebadge" class="badge">…</span>
+  <div class="meter">
+    <span class="stat" id="worldstat"></span>
+    <span class="stat" title="client-side meter: READY seconds × 33 credits/s">
+      <b id="credits">0</b> cr · $<span id="dollars">0.00</span></span>
+    <span class="stat" title="20-minute session cap">⏱ <b id="expires">–</b></span>
+    <span id="wsdot" title="control channel"></span>
+  </div>
+</header>
+
+<main>
+  <div class="left">
+    <div class="stage">
+      <img id="stream" alt="live view from inside the world" src="/stream">
+      <div class="veil">
+        <div class="spinner"></div>
+        <div class="big" id="veiltext">No world yet</div>
+        <div id="veilsub">Pick a world on the right, then Enter world.</div>
+      </div>
+      <div class="hud">
+        <span class="chip" id="hud-move">move ·</span>
+        <span class="chip" id="hud-lookh">look ·</span>
+        <span class="chip" id="hud-lookv">tilt ·</span>
+      </div>
+      <span class="driverchip" id="driverchip">agent driving</span>
+      <div id="banner"><div class="card">
+        <div class="word">Arrived</div>
+        <div class="cmd" id="banner-cmd"></div>
+      </div></div>
+    </div>
+
+    <section class="feed">
+      <h2>Agent reasoning</h2>
+      <div id="lines"><div class="empty">Decisions stream here once the agent gets a command.</div></div>
+    </section>
+  </div>
+
+  <div class="rail">
+    <section class="card">
+      <h2>World</h2>
+      <div class="worlds" id="worlds"></div>
+      <input type="file" id="file" accept="image/jpeg,image/png,image/webp" hidden>
+      <label class="small" for="prompt">Scene description — static, no motion verbs</label>
+      <textarea id="prompt" placeholder="A quiet street with a red brick house on the left…"></textarea>
+      <div class="row">
+        <button class="btn primary wide" id="enter">Enter world</button>
+        <button class="btn danger" id="leave" hidden>Leave world</button>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Driver</h2>
+      <div class="seg" role="group" aria-label="who drives">
+        <button id="seg-agent" aria-pressed="true">Agent</button>
+        <button id="seg-human" aria-pressed="false">You (WASD)</button>
+      </div>
+
+      <div id="drive-agent">
+        <label class="small" for="command">Command</label>
+        <input type="text" id="command" placeholder="go to the red house" autocomplete="off">
+        <div class="chips" id="suggest"></div>
+        <div class="row">
+          <button class="btn primary wide" id="go">Go</button>
+          <button class="btn danger" id="stop" disabled>Stop</button>
+          <select id="mode" title="policy mode"></select>
+        </div>
+      </div>
+
+      <div id="drive-human">
+        <div class="keys" style="margin-top:10px">
+          <kbd>W</kbd><kbd>S</kbd> forward / back<br>
+          <kbd>A</kbd><kbd>D</kbd> strafe left / right<br>
+          <kbd>←</kbd><kbd>→</kbd> turn &nbsp; <kbd>↑</kbd><kbd>↓</kbd> look<br>
+        </div>
+        <div class="hint">Actions are persistent — release a key to send idle.
+          The world answers about 1.5&nbsp;s later; that lag is what the agent deals with too.</div>
+      </div>
+    </section>
+  </div>
+</main>
+
+<script>
+"use strict";
+/* ------------------------------------------------------------------ state */
+const S = {
+  state: "idle", replay: false, world: null,
+  selected: null,          // world name | "custom"
+  uploadedPath: null,
+  worlds: {},              // name -> {prompt, commands, thumb}
+  driver: "agent",
+  editedPrompt: false,
+};
+const $ = id => document.getElementById(id);
+let ws = null, wsOpen = false;
+
+function send(obj) { if (wsOpen) ws.send(JSON.stringify(obj)); }
+
+/* ------------------------------------------------------------------ feed */
+const MOVE_LABEL = { idle: "·", forward: "↑fwd", back: "↓back",
+                     strafe_left: "⇠strafe", strafe_right: "strafe⇢" };
+const LOOKH_LABEL = { idle: "·", left: "⟵turn", right: "turn⟶" };
+const LOOKV_LABEL = { idle: "·", up: "↑", down: "↓" };
+
+function feedLine(cls, t, ax, text) {
+  const box = $("lines");
+  const empty = box.querySelector(".empty");
+  if (empty) empty.remove();
+  const ln = document.createElement("div");
+  ln.className = "ln " + cls;
+  const mk = (c, s) => { const e = document.createElement("span"); e.className = c; e.textContent = s; return e; };
+  ln.append(mk("t", t), mk("ax", ax), mk("r", text));
+  const stick = box.scrollHeight - box.scrollTop - box.clientHeight < 60;
+  box.append(ln);
+  while (box.children.length > 300) box.firstChild.remove();
+  if (stick) box.scrollTop = box.scrollHeight;
+}
+
+/* ------------------------------------------------------------------ render */
+function render() {
+  document.body.dataset.state = S.state;
+  // Accent = who owns the body right now. Episode always means the agent.
+  document.body.dataset.driver = (S.driver === "human" && S.state !== "episode") ? "human" : "agent";
+  $("driverchip").textContent = S.state === "episode" ? "agent driving"
+    : (S.driver === "human" ? "you drive — WASD" : "agent idle");
+
+  const badge = $("modebadge");
+  badge.textContent = S.replay ? "replay · 0 credits" : "live · bills per second";
+  badge.className = "badge " + (S.replay ? "replay" : "live");
+
+  $("worldstat").textContent = S.world ? "world: " + S.world : "";
+  $("enter").hidden = S.state !== "idle";
+  $("enter").disabled = !(S.state === "idle" && canEnter());
+  $("leave").hidden = S.state === "idle" || S.state === "connecting";
+  $("go").disabled = S.state !== "ready";
+  $("stop").disabled = S.state !== "episode";
+  $("veiltext").textContent = S.state === "connecting" ? "Dreaming the world…" : "No world yet";
+  $("veilsub").textContent = S.state === "connecting"
+    ? "The world model is generating your scene." : "Pick a world on the right, then Enter world.";
+}
+
+function canEnter() {
+  if (S.selected === "custom") return !!S.uploadedPath && $("prompt").value.trim().length > 0;
+  return !!S.selected;
+}
+
+/* ------------------------------------------------------------------ worlds */
+async function loadWorlds() {
+  const list = await (await fetch("/worlds")).json();
+  const box = $("worlds");
+  for (const w of list) {
+    S.worlds[w.name] = w;
+    const b = document.createElement("button");
+    b.className = "world"; b.dataset.name = w.name; b.setAttribute("aria-pressed", "false");
+    b.innerHTML = `<img src="${w.thumb}" alt=""><span class="nm">${w.name}</span>`;
+    b.onclick = () => selectWorld(w.name);
+    box.append(b);
+  }
+  const up = document.createElement("button");
+  up.className = "world uploadtile"; up.dataset.name = "custom";
+  up.setAttribute("aria-pressed", "false");
+  up.textContent = "+ your photo";
+  up.onclick = () => $("file").click();
+  box.append(up);
+}
+
+function selectWorld(name) {
+  S.selected = name;
+  document.querySelectorAll(".world").forEach(el =>
+    el.setAttribute("aria-pressed", String(el.dataset.name === name)));
+  if (name !== "custom") {
+    $("prompt").value = S.worlds[name].prompt;
+    S.editedPrompt = false;
+    suggest(S.worlds[name].commands);
+  } else {
+    suggest([]);
+  }
+  render();
+}
+
+function suggest(commands) {
+  const box = $("suggest");
+  box.textContent = "";
+  for (const c of commands) {
+    const b = document.createElement("button");
+    b.textContent = c;
+    b.onclick = () => { $("command").value = c; $("command").focus(); };
+    box.append(b);
+  }
+}
+
+$("prompt").addEventListener("input", () => { S.editedPrompt = true; render(); });
+
+$("file").addEventListener("change", async () => {
+  const f = $("file").files[0];
+  if (!f) return;
+  const tile = document.querySelector(".uploadtile");
+  tile.textContent = "uploading…";
+  const fd = new FormData();
+  fd.append("image", f);
+  try {
+    const resp = await fetch("/upload", { method: "POST", body: fd });
+    if (!resp.ok) throw new Error(await resp.text());
+    S.uploadedPath = (await resp.json()).path;
+    tile.textContent = "";
+    tile.innerHTML = `<img src="${URL.createObjectURL(f)}" alt=""><span class="nm">your photo</span>`;
+    $("prompt").value = "";
+    $("prompt").focus();
+    selectWorld("custom");
+  } catch (e) {
+    tile.textContent = "+ your photo";
+    feedLine("err", "", "", "upload failed: " + e.message);
+  }
+});
+
+/* ------------------------------------------------------------------ controls */
+$("enter").onclick = () => {
+  if (S.selected === "custom") {
+    send({ op: "connect", image: S.uploadedPath, prompt: $("prompt").value.trim() });
+  } else {
+    const p = { op: "connect", world: S.selected };
+    if (S.editedPrompt) p.prompt = $("prompt").value.trim();
+    send(p);
+  }
+};
+$("leave").onclick = () => send({ op: "disconnect" });
+$("go").onclick = () => send({ op: "command", text: $("command").value, mode: $("mode").value });
+$("stop").onclick = () => send({ op: "stop" });
+$("command").addEventListener("keydown", e => { if (e.key === "Enter") $("go").click(); });
+
+function setDriver(d) {
+  if (S.driver === d) return;
+  S.driver = d;
+  $("seg-agent").setAttribute("aria-pressed", String(d === "agent"));
+  $("seg-human").setAttribute("aria-pressed", String(d === "human"));
+  if (d !== "human") releaseAll(true);
+  render();
+}
+$("seg-agent").onclick = () => setDriver("agent");
+$("seg-human").onclick = () => setDriver("human");
+
+/* ------------------------------------------------------------------ WASD */
+const KEYMAP = {
+  KeyW: ["movement", "forward"],      KeyS: ["movement", "back"],
+  KeyA: ["movement", "strafe_left"],  KeyD: ["movement", "strafe_right"],
+  ArrowLeft:  ["look_horizontal", "left"],  KeyQ: ["look_horizontal", "left"],
+  ArrowRight: ["look_horizontal", "right"], KeyE: ["look_horizontal", "right"],
+  ArrowUp:   ["look_vertical", "up"],  ArrowDown: ["look_vertical", "down"],
+};
+const held = { movement: [], look_horizontal: [], look_vertical: [] }; // codes, press order
+let sentAxes = { movement: "idle", look_horizontal: "idle", look_vertical: "idle" };
+
+const driveAllowed = () => wsOpen && S.state === "ready" && S.driver === "human";
+const typing = () => ["INPUT", "TEXTAREA", "SELECT"].includes(document.activeElement.tagName);
+
+function pushDrive() {
+  const want = {};
+  for (const axis in held) {
+    const codes = held[axis];
+    want[axis] = codes.length ? KEYMAP[codes[codes.length - 1]][1] : "idle";
+  }
+  const changed = {};
+  for (const axis in want) if (want[axis] !== sentAxes[axis]) changed[axis] = want[axis];
+  if (Object.keys(changed).length) {
+    send({ op: "drive", ...changed });
+    Object.assign(sentAxes, changed);
+  }
+}
+
+function releaseAll(sendIdle) {
+  for (const axis in held) held[axis] = [];
+  if (sendIdle && wsOpen && S.state === "ready") {
+    send({ op: "drive", movement: "idle", look_horizontal: "idle", look_vertical: "idle" });
+  }
+  sentAxes = { movement: "idle", look_horizontal: "idle", look_vertical: "idle" };
+}
+
+window.addEventListener("keydown", e => {
+  const m = KEYMAP[e.code];
+  if (!m || e.repeat || typing() || !driveAllowed()) return;
+  e.preventDefault();
+  const [axis] = m;
+  held[axis] = held[axis].filter(c => c !== e.code);
+  held[axis].push(e.code);
+  pushDrive();
+});
+window.addEventListener("keyup", e => {
+  const m = KEYMAP[e.code];
+  if (!m) return;
+  const [axis] = m;
+  held[axis] = held[axis].filter(c => c !== e.code);
+  if (driveAllowed()) pushDrive();
+});
+window.addEventListener("blur", () => { if (driveAllowed()) releaseAll(true); });
+
+/* ------------------------------------------------------------------ events */
+function onEvent(msg) {
+  switch (msg.ev) {
+    case "hello": {
+      S.replay = msg.replay;
+      const sel = $("mode");
+      sel.textContent = "";
+      for (const m of msg.modes) {
+        const o = document.createElement("option");
+        o.value = o.textContent = m;
+        sel.append(o);
+      }
+      sel.value = "full";
+      break;
+    }
+    case "state": {
+      const was = S.state;
+      S.state = msg.state; S.world = msg.world; S.replay = msg.replay;
+      $("credits").textContent = msg.credits;
+      $("dollars").textContent = msg.dollars.toFixed(2);
+      $("expires").textContent = msg.expires_in == null ? "–"
+        : `${Math.max(0, Math.floor(msg.expires_in / 60))}:${String(Math.max(0, msg.expires_in % 60)).padStart(2, "0")}`;
+      const a = msg.action;
+      $("hud-move").textContent  = "move " + MOVE_LABEL[a.movement];
+      $("hud-lookh").textContent = "look " + LOOKH_LABEL[a.look_horizontal];
+      $("hud-lookv").textContent = "tilt " + LOOKV_LABEL[a.look_vertical];
+      $("hud-move").classList.toggle("active",  a.movement !== "idle");
+      $("hud-lookh").classList.toggle("active", a.look_horizontal !== "idle");
+      $("hud-lookv").classList.toggle("active", a.look_vertical !== "idle");
+      if (was === "ready" && S.state !== "ready") releaseAll(false);
+      break;
+    }
+    case "decision": {
+      const ax = `${MOVE_LABEL[msg.movement]} ${LOOKH_LABEL[msg.look_horizontal]} ${LOOKV_LABEL[msg.look_vertical]}`;
+      feedLine(msg.ok ? (msg.arrived ? "win" : "") : "held",
+               msg.t.toFixed(1) + "s", ax,
+               (msg.arrived ? "ARRIVED — " : "") + msg.reasoning);
+      break;
+    }
+    case "episode_start":
+      feedLine("meta", "", "", `— episode [${msg.mode}]: ${msg.command}`);
+      break;
+    case "episode_end":
+      feedLine(msg.success ? "win" : "meta", msg.elapsed + "s", "",
+               msg.success ? `arrived: ${msg.command}` : `ended without arrival: ${msg.command}`);
+      if (msg.success) {
+        $("banner-cmd").textContent = msg.command;
+        $("banner").classList.add("show");
+        setTimeout(() => $("banner").classList.remove("show"), 4200);
+      }
+      break;
+    case "log":   feedLine("meta", "", "", msg.text); break;
+    case "error": feedLine("err",  "", "", msg.text); break;
+  }
+  render();
+}
+
+/* ------------------------------------------------------------------ socket */
+function connectWS() {
+  ws = new WebSocket(`ws://${location.host}/ws`);
+  ws.onopen = () => { wsOpen = true; $("wsdot").classList.add("on"); };
+  ws.onmessage = e => onEvent(JSON.parse(e.data));
+  ws.onclose = () => {
+    wsOpen = false;
+    $("wsdot").classList.remove("on");
+    S.state = "idle";
+    render();
+    setTimeout(connectWS, 2000);
+  };
+}
+
+loadWorlds().then(() => selectWorld("village")).catch(() => {});
+connectWS();
+render();
+</script>
+</body>
+</html>
